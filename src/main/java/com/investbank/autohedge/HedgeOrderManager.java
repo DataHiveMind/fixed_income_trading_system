@@ -3,6 +3,7 @@ package com.investbank.autohedge;
 import quickfix.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.BiConsumer;
 
 public class HedgeOrderManager {
     public enum OrderState {
@@ -31,6 +32,7 @@ public class HedgeOrderManager {
     private final Map<String, HedgeOrder> orders = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final long timeoutMillis = 5000;
+    private BiConsumer<HedgeOrder, OrderState> fillListener;
 
     public HedgeOrderManager(SessionID sessionID) {
         this.sessionID = sessionID;
@@ -52,6 +54,9 @@ public class HedgeOrderManager {
         HedgeOrder order = orders.get(orderId);
         if (order != null) {
             order.state = newState;
+            if (fillListener != null && newState == OrderState.FILLED) {
+                fillListener.accept(order, newState);
+            }
         }
     }
 
@@ -74,5 +79,9 @@ public class HedgeOrderManager {
     public OrderState getOrderState(String orderId) {
         HedgeOrder order = orders.get(orderId);
         return order != null ? order.state : null;
+    }
+
+    public void setFillListener(BiConsumer<HedgeOrder, OrderState> listener) {
+        this.fillListener = listener;
     }
 }
